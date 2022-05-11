@@ -185,7 +185,7 @@ allprojects  {
             dependency "com.google.code.findbugs:jsr305:3.0.2"
             dependency "commons-codec:commons-codec:1.15"
 
-            dependency ('org.liquibase:liquibase-core:4.8.0') {
+            dependency ('org.liquibase:liquibase-core:4.10.0') {
                 exclude 'javax.xml.bind:jaxb-api'
             }
 
