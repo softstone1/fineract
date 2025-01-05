@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:13
+    container_name: fineract-postgres
+    environment:
+      POSTGRES_USER: fineract
+      POSTGRES_PASSWORD: fineract
+      POSTGRES_DB: fineract
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fineract -d fineract"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: ./fineract-go
+    container_name: fineract-app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: fineract
+      DB_PASSWORD: fineract
+      DB_NAME: fineract
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "./fineract-go migrate &&
+             ./fineract-go"
+
+volumes:
+  postgres_data:

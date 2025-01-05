@@ -1,0 +1,1 @@
+failed to get loans: missing destination name loan_product_counter in *[]domain.Loan
