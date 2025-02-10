@@ -511,7 +511,7 @@ public class LoanCharge extends AbstractAuditableWithUTCDateTimeCustom<Long> {
         return this.dueDate; // TODO delete duplicated method
     }
 
-    private boolean determineIfFullyPaid() {
+    public boolean determineIfFullyPaid() {
         if (this.amount == null) {
             return true;
         }

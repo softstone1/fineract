@@ -27,16 +27,14 @@ import org.apache.fineract.infrastructure.core.exception.PlatformApiDataValidati
 import org.apache.fineract.portfolio.interestpauses.service.InterestPauseWritePlatformService;
 import org.springframework.stereotype.Component;
 
-@Component("interestPauseCommandHandler")
+@Component("createInterestPauseCommandHandler")
 @RequiredArgsConstructor
-public class InterestPauseCommandHandler implements NewCommandSourceHandler {
+public class CreateInterestPauseCommandHandler implements NewCommandSourceHandler {
 
     private final InterestPauseWritePlatformService interestPauseService;
 
     @Override
     public CommandProcessingResult processCommand(final JsonCommand command) {
-        CommandProcessingResult result;
-
         final String startDate = command.stringValueOfParameterNamed("startDate");
         final String endDate = command.stringValueOfParameterNamed("endDate");
         final String dateFormat = command.stringValueOfParameterNamed("dateFormat");
@@ -44,15 +42,13 @@ public class InterestPauseCommandHandler implements NewCommandSourceHandler {
 
         if (command.getLoanId() != null) {
             final Long loanId = command.getLoanId();
-            result = interestPauseService.createInterestPause(loanId, startDate, endDate, dateFormat, locale);
+            return interestPauseService.createInterestPause(loanId, startDate, endDate, dateFormat, locale);
         } else if (command.getLoanExternalId() != null) {
             final ExternalId loanExternalId = command.getLoanExternalId();
-            result = interestPauseService.createInterestPause(loanExternalId, startDate, endDate, dateFormat, locale);
+            return interestPauseService.createInterestPause(loanExternalId, startDate, endDate, dateFormat, locale);
         } else {
             throw new PlatformApiDataValidationException("validation.msg.missing.loan.id.or.external.id",
                     "Either loanId or loanExternalId must be provided.", "loanId");
         }
-
-        return result;
     }
 }

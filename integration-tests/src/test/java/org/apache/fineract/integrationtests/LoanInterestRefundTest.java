@@ -30,6 +30,7 @@ import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.ResponseSpecification;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -129,6 +130,120 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
     }
 
     @Test
+    public void verifyFullMerchantIssuedRefundWithReAmortizationOnDay0HighInterest6month() {
+        runAt("1 January 2021", () -> {
+            PostLoanProductsResponse loanProduct = loanProductHelper
+                    .createLoanProduct(create4IProgressive().daysInMonthType(DaysInMonthType.ACTUAL) //
+                            .daysInYearType(DaysInYearType.ACTUAL) //
+                            .addSupportedInterestRefundTypesItem(SupportedInterestRefundTypesItem.MERCHANT_ISSUED_REFUND) //
+                            .paymentAllocation(List.of(createDefaultPaymentAllocation("REAMORTIZATION")))//
+                            .recalculationRestFrequencyType(RecalculationRestFrequencyType.DAILY) //
+            );
+            Long loanId = applyAndApproveProgressiveLoan(client.getClientId(), loanProduct.getResourceId(), "1 January 2021", 600.0, 60.0,
+                    6, null);
+            Assertions.assertNotNull(loanId);
+            disburseLoan(loanId, BigDecimal.valueOf(600), "1 January 2021");
+            PostLoansLoanIdTransactionsResponse postLoansLoanIdTransactionsResponse = loanTransactionHelper
+                    .makeLoanRepayment("MerchantIssuedRefund", "1 January 2021", 600F, loanId.intValue());
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse);
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse.getResourceId());
+
+            verifyTransactions(loanId, transaction(600.0, "Disbursement", "01 January 2021"), //
+                    transaction(600.0, "Merchant Issued Refund", "01 January 2021") //
+            );
+            verifyRepaymentSchedule(loanId, installment(600.0, null, "01 January 2021"), //
+                    fullyRepaidInstallment(100.0, 0.0, "01 February 2021"), //
+                    fullyRepaidInstallment(100.0, 0.0, "01 March 2021"), //
+                    fullyRepaidInstallment(100.0, 0.0, "01 April 2021"), //
+                    fullyRepaidInstallment(100.0, 0.0, "01 May 2021"), //
+                    fullyRepaidInstallment(100.0, 0.0, "01 June 2021"), //
+                    fullyRepaidInstallment(100.0, 0.0, "01 July 2021") //
+            );
+        });
+    }
+
+    @Test
+    public void verifyAlmostFullMerchantIssuedRefundWithReAmortizationOnDay0HighInterest12month() {
+        runAt("1 January 2021", () -> {
+            PostLoanProductsResponse loanProduct = loanProductHelper
+                    .createLoanProduct(create4IProgressive().daysInMonthType(DaysInMonthType.ACTUAL) //
+                            .daysInYearType(DaysInYearType.ACTUAL) //
+                            .addSupportedInterestRefundTypesItem(SupportedInterestRefundTypesItem.MERCHANT_ISSUED_REFUND) //
+                            .paymentAllocation(List.of(createDefaultPaymentAllocation("REAMORTIZATION")))//
+                            .recalculationRestFrequencyType(RecalculationRestFrequencyType.DAILY) //
+            );
+            Long loanId = applyAndApproveProgressiveLoan(client.getClientId(), loanProduct.getResourceId(), "1 January 2021", 1000.0, 26.0,
+                    12, null);
+            Assertions.assertNotNull(loanId);
+            disburseLoan(loanId, BigDecimal.valueOf(1000), "1 January 2021");
+
+            PostLoansLoanIdTransactionsResponse postLoansLoanIdTransactionsResponse = loanTransactionHelper
+                    .makeLoanRepayment("MerchantIssuedRefund", "1 January 2021", 980F, loanId.intValue());
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse);
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse.getResourceId());
+
+            verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
+                    transaction(980.0, "Merchant Issued Refund", "01 January 2021") //
+            );
+
+            verifyRepaymentSchedule(loanId, installment(1000.0, null, "01 January 2021"), //
+                    installment(95.04, 0.44, 13.81, false, "01 February 2021"), //
+                    installment(88.30, 0.13, 6.76, false, "01 March 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 April 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 May 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 June 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 July 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 August 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 September 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 October 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 November 2021"), //
+                    fullyRepaidInstallment(81.67, 0.0, "01 December 2021"), //
+                    fullyRepaidInstallment(81.63, 0.0, "01 January 2022") //
+            );
+        });
+    }
+
+    @Test
+    public void verifyFullMerchantIssuedRefundWithReAmortizationOnDay0HighInterest12month() {
+        runAt("1 January 2021", () -> {
+            PostLoanProductsResponse loanProduct = loanProductHelper
+                    .createLoanProduct(create4IProgressive().daysInMonthType(DaysInMonthType.ACTUAL) //
+                            .daysInYearType(DaysInYearType.ACTUAL) //
+                            .addSupportedInterestRefundTypesItem(SupportedInterestRefundTypesItem.MERCHANT_ISSUED_REFUND) //
+                            .paymentAllocation(List.of(createDefaultPaymentAllocation("REAMORTIZATION")))//
+                            .recalculationRestFrequencyType(RecalculationRestFrequencyType.DAILY) //
+            );
+            Long loanId = applyAndApproveProgressiveLoan(client.getClientId(), loanProduct.getResourceId(), "1 January 2021", 1000.0, 26.0,
+                    12, null);
+            Assertions.assertNotNull(loanId);
+            disburseLoan(loanId, BigDecimal.valueOf(1000), "1 January 2021");
+
+            PostLoansLoanIdTransactionsResponse postLoansLoanIdTransactionsResponse = loanTransactionHelper
+                    .makeLoanRepayment("MerchantIssuedRefund", "1 January 2021", 1000F, loanId.intValue());
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse);
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse.getResourceId());
+
+            verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
+                    transaction(1000.0, "Merchant Issued Refund", "01 January 2021") //
+            );
+            verifyRepaymentSchedule(loanId, installment(1000.0, null, "01 January 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 February 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 March 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 April 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 May 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 June 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 July 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 August 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 September 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 October 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 November 2021"), //
+                    fullyRepaidInstallment(83.33, 0.0, "01 December 2021"), //
+                    fullyRepaidInstallment(83.37, 0.0, "01 January 2022") //
+            );
+        });
+    }
+
+    @Test
     public void verifyInterestRefundCreatedForPayoutRefund() {
         AtomicReference<Long> loanIdRef = new AtomicReference<>();
         runAt("1 January 2021", () -> {
@@ -155,8 +270,8 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, //
                     transaction(1000.0, "Disbursement", "01 January 2021"), //
                     transaction(1000.0, "Payout Refund", "22 January 2021"), //
-                    transaction(5.74, "Interest Refund", "22 January 2021"), //
-                    transaction(5.74, "Accrual", "22 January 2021")); //
+                    transaction(5.75, "Interest Refund", "22 January 2021"), //
+                    transaction(5.75, "Accrual", "22 January 2021")); //
 
             checkTransactionWasNotReverseReplayed(postLoansLoanIdTransactionsResponse.getLoanId(),
                     postLoansLoanIdTransactionsResponse.getResourceId());
@@ -165,12 +280,12 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
 
             verifyTRJournalEntries(postLoansLoanIdTransactionsResponse.getResourceId(), //
                     journalEntry(1000, fundSource, "DEBIT"), //
-                    journalEntry(5.74, interestReceivableAccount, "CREDIT"), //
-                    journalEntry(994.26, loansReceivableAccount, "CREDIT"));
+                    journalEntry(5.75, interestReceivableAccount, "CREDIT"), //
+                    journalEntry(994.25, loansReceivableAccount, "CREDIT"));
 
             verifyTRJournalEntries(postLoansLoanIdTransactionsResponse.getSubResourceId(),
-                    journalEntry(5.74, interestIncomeAccount, "DEBIT"), //
-                    journalEntry(5.74, loansReceivableAccount, "CREDIT")); //
+                    journalEntry(5.75, interestIncomeAccount, "DEBIT"), //
+                    journalEntry(5.75, loansReceivableAccount, "CREDIT")); //
         });
     }
 
@@ -212,8 +327,129 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             logLoanTransactions(loanId);
             verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
                     transaction(1000.0, "Merchant Issued Refund", "22 January 2021"), //
-                    transaction(5.74, "Accrual", "22 January 2021"), //
-                    transaction(5.74, "Interest Refund", "22 January 2021") //
+                    transaction(5.75, "Accrual", "22 January 2021"), //
+                    transaction(5.75, "Interest Refund", "22 January 2021") //
+            );
+        });
+    }
+
+    @Test
+    public void verifyInterestRefundCreatedForMerchantIssuedRefundDay22HighInterest12month() {
+        AtomicReference<Long> loanIdRef = new AtomicReference<>();
+        runAt("1 January 2021", () -> {
+            PostLoanProductsResponse loanProduct = loanProductHelper
+                    .createLoanProduct(create4IProgressive().daysInMonthType(DaysInMonthType.ACTUAL) //
+                            .daysInYearType(DaysInYearType.ACTUAL) //
+                            .addSupportedInterestRefundTypesItem(SupportedInterestRefundTypesItem.MERCHANT_ISSUED_REFUND) //
+                            .recalculationRestFrequencyType(RecalculationRestFrequencyType.DAILY) //
+            );
+            Long loanId = applyAndApproveProgressiveLoan(client.getClientId(), loanProduct.getResourceId(), "1 January 2021", 1000.0, 26.0,
+                    12, null);
+            Assertions.assertNotNull(loanId);
+            loanIdRef.set(loanId);
+            disburseLoan(loanId, BigDecimal.valueOf(1000), "1 January 2021");
+        });
+        runAt("22 January 2021", () -> {
+            Long loanId = loanIdRef.get();
+            PostLoansLoanIdTransactionsResponse postLoansLoanIdTransactionsResponse = loanTransactionHelper
+                    .makeLoanRepayment("MerchantIssuedRefund", "22 January 2021", 1000F, loanId.intValue());
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse);
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse.getResourceId());
+
+            verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
+                    transaction(14.96, "Accrual", "22 January 2021"), //
+                    transaction(14.96, "Interest Refund", "22 January 2021"), //
+                    transaction(1000.0, "Merchant Issued Refund", "22 January 2021") //
+            );
+            verifyRepaymentSchedule(loanId, installment(1000.0, null, "01 January 2021"), //
+                    fullyRepaidInstallment(80.52, 14.96, "01 February 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 March 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 April 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 May 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 June 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 July 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 August 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 September 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 October 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 November 2021"), //
+                    fullyRepaidInstallment(60.16, 0.0, "01 December 2021"), //
+                    fullyRepaidInstallment(0.0, 0.0, "01 January 2022") //
+            );
+        });
+    }
+
+    @Test
+    public void verifyFullMerchantIssuedRefundOnDay0HighInterest12month() {
+        runAt("1 January 2021", () -> {
+            PostLoanProductsResponse loanProduct = loanProductHelper
+                    .createLoanProduct(create4IProgressive().daysInMonthType(DaysInMonthType.ACTUAL) //
+                            .daysInYearType(DaysInYearType.ACTUAL) //
+                            .addSupportedInterestRefundTypesItem(SupportedInterestRefundTypesItem.MERCHANT_ISSUED_REFUND) //
+                            .recalculationRestFrequencyType(RecalculationRestFrequencyType.DAILY) //
+            );
+            Long loanId = applyAndApproveProgressiveLoan(client.getClientId(), loanProduct.getResourceId(), "1 January 2021", 1000.0, 26.0,
+                    12, null);
+            Assertions.assertNotNull(loanId);
+            disburseLoan(loanId, BigDecimal.valueOf(1000), "1 January 2021");
+            PostLoansLoanIdTransactionsResponse postLoansLoanIdTransactionsResponse = loanTransactionHelper
+                    .makeLoanRepayment("MerchantIssuedRefund", "1 January 2021", 1000F, loanId.intValue());
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse);
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse.getResourceId());
+
+            verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
+                    transaction(1000.0, "Merchant Issued Refund", "01 January 2021") //
+            );
+            verifyRepaymentSchedule(loanId, installment(1000.0, null, "01 January 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 February 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 March 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 April 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 May 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 June 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 July 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 August 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 September 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 October 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 November 2021"), //
+                    fullyRepaidInstallment(45.2, 0.0, "01 December 2021"), //
+                    fullyRepaidInstallment(0.0, 0.0, "01 January 2022") //
+            );
+        });
+    }
+
+    @Test
+    public void verifyRepaymentDay0HighInterest12month() {
+        runAt("1 January 2021", () -> {
+            PostLoanProductsResponse loanProduct = loanProductHelper
+                    .createLoanProduct(create4IProgressive().daysInMonthType(DaysInMonthType.ACTUAL) //
+                            .daysInYearType(DaysInYearType.ACTUAL) //
+                            .addSupportedInterestRefundTypesItem(SupportedInterestRefundTypesItem.MERCHANT_ISSUED_REFUND) //
+                            .recalculationRestFrequencyType(RecalculationRestFrequencyType.DAILY) //
+            );
+            Long loanId = applyAndApproveProgressiveLoan(client.getClientId(), loanProduct.getResourceId(), "1 January 2021", 1000.0, 26.0,
+                    12, null);
+            Assertions.assertNotNull(loanId);
+            disburseLoan(loanId, BigDecimal.valueOf(1000), "1 January 2021");
+            PostLoansLoanIdTransactionsResponse postLoansLoanIdTransactionsResponse = loanTransactionHelper.makeLoanRepayment("Repayment",
+                    "1 January 2021", 1000F, loanId.intValue());
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse);
+            Assertions.assertNotNull(postLoansLoanIdTransactionsResponse.getResourceId());
+
+            verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
+                    transaction(1000.0, "Repayment", "01 January 2021") //
+            );
+            verifyRepaymentSchedule(loanId, installment(1000.0, null, "01 January 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 February 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 March 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 April 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 May 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 June 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 July 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 August 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 September 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 October 2021"), //
+                    fullyRepaidInstallment(95.48, 0.0, "01 November 2021"), //
+                    fullyRepaidInstallment(45.2, 0.0, "01 December 2021"), //
+                    fullyRepaidInstallment(0.0, 0.0, "01 January 2022") //
             );
         });
     }
@@ -245,8 +481,8 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             logLoanTransactions(loanId);
             verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
                     transaction(1000.0, "Payout Refund", "22 January 2021"), //
-                    transaction(5.74, "Accrual", "22 January 2021"), //
-                    transaction(5.74, "Interest Refund", "22 January 2021") //
+                    transaction(5.75, "Accrual", "22 January 2021"), //
+                    transaction(5.75, "Interest Refund", "22 January 2021") //
             );
         });
     }
@@ -323,8 +559,8 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
                     transaction(87.89, "Repayment", "01 February 2021"), //
                     transaction(1000.0, "Payout Refund", "09 February 2021"), //
-                    transaction(10.49, "Interest Refund", "09 February 2021"), //
-                    transaction(10.49, "Accrual", "09 February 2021") //
+                    transaction(10.5, "Interest Refund", "09 February 2021"), //
+                    transaction(10.5, "Accrual", "09 February 2021") //
             );
         });
     }
@@ -361,8 +597,8 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(750.0, "Disbursement", "01 January 2021"), //
                     transaction(250.0, "Disbursement", "01 January 2021"), //
                     transaction(1000.0, "Payout Refund", "22 January 2021"), //
-                    transaction(5.74, "Accrual", "22 January 2021"), //
-                    transaction(5.74, "Interest Refund", "22 January 2021") //
+                    transaction(5.75, "Accrual", "22 January 2021"), //
+                    transaction(5.75, "Interest Refund", "22 January 2021") //
             );
         });
     }
@@ -400,8 +636,8 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(750.0, "Disbursement", "04 January 2021"), //
                     transaction(250.0, "Disbursement", "01 January 2021"), //
                     transaction(1000.0, "Payout Refund", "22 January 2021"), //
-                    transaction(5.13, "Accrual", "22 January 2021"), //
-                    transaction(5.13, "Interest Refund", "22 January 2021") //
+                    transaction(5.14, "Accrual", "22 January 2021"), //
+                    transaction(5.14, "Interest Refund", "22 January 2021") //
             );
         });
     }
@@ -533,7 +769,7 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(1000.0, "Disbursement", "01 January 2021"), //
                     transaction(87.89, "Repayment", "01 February 2021"), //
                     transaction(500.0, "Payout Refund", "09 February 2021"), //
-                    transaction(5.34, "Interest Refund", "09 February 2021"));
+                    transaction(5.35, "Interest Refund", "09 February 2021"));
         });
     }
 
@@ -568,7 +804,7 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(250.0, "Disbursement", "01 January 2021"), //
                     transaction(750.0, "Disbursement", "01 January 2021"), //
                     transaction(500.0, "Payout Refund", "22 January 2021"), //
-                    transaction(2.87, "Interest Refund", "22 January 2021"));
+                    transaction(2.88, "Interest Refund", "22 January 2021"));
         });
     }
 
@@ -605,7 +841,7 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(250.0, "Disbursement", "01 January 2021"), //
                     transaction(750.0, "Disbursement", "07 January 2021"), //
                     transaction(500.0, "Payout Refund", "22 January 2021"), //
-                    transaction(2.46, "Interest Refund", "22 January 2021"));
+                    transaction(2.47, "Interest Refund", "22 January 2021"));
         });
     }
 
@@ -653,7 +889,7 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
                     transaction(171.29, "Repayment", "01 May 2021"), //
                     transaction(171.29, "Repayment", "01 June 2021"), //
                     transaction(171.32, "Repayment", "01 July 2021"), //
-                    transaction(27.77, "Accrual", "01 July 2021") //
+                    transaction(27.76, "Accrual", "01 July 2021") //
             ); //
         });
         runAt("11 July 2021", () -> {
@@ -673,8 +909,8 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
                     transaction(171.29, "Repayment", "01 June 2021"), //
                     transaction(171.32, "Repayment", "01 July 2021"), //
                     transaction(500.0, "Payout Refund", "11 July 2021"), //
-                    transaction(20.41, "Interest Refund", "11 July 2021"), //
-                    transaction(27.77, "Accrual", "01 July 2021") //
+                    transaction(20.40, "Interest Refund", "11 July 2021"), //
+                    transaction(27.76, "Accrual", "01 July 2021") //
             ); //
         });
     }
@@ -795,7 +1031,7 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(250.0, "Disbursement", "01 January 2021"), //
                     transaction(750.0, "Disbursement", "01 January 2021"), //
                     transaction(500.0, "Merchant Issued Refund", "22 January 2021"), //
-                    transaction(2.87, "Interest Refund", "22 January 2021") //
+                    transaction(2.88, "Interest Refund", "22 January 2021") //
             );
         });
         runAt("26 January 2021", () -> {
@@ -805,14 +1041,14 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
             verifyTransactions(loanId, transaction(250.0, "Disbursement", "01 January 2021"), //
                     transaction(750.0, "Disbursement", "01 January 2021"), //
                     transaction(500.0, "Merchant Issued Refund", "22 January 2021"), //
-                    transaction(2.87, "Interest Refund", "22 January 2021"), //
+                    transaction(2.88, "Interest Refund", "22 January 2021"), //
                     transaction(400.0, "Payout Refund", "26 January 2021"), //
-                    transaction(2.73, "Interest Refund", "26 January 2021") //
+                    transaction(2.74, "Interest Refund", "26 January 2021") //
             );
         });
         runAt("1 February 2021", () -> {
             Long loanId = loanIdRef.get();
-            loanTransactionHelper.makeLoanRepayment("Repayment", "1 February 2021", 100.86F, loanId.intValue());
+            loanTransactionHelper.makeLoanRepayment("Repayment", "1 February 2021", 100.85F, loanId.intValue());
             GetLoansLoanIdResponse loanDetails = loanTransactionHelper.getLoanDetails(loanId);
             Assertions.assertNotNull(loanDetails);
             Assertions.assertNotNull(loanDetails.getStatus());
@@ -867,7 +1103,7 @@ public class LoanInterestRefundTest extends BaseLoanIntegrationTest {
                     transaction(250.0, "Merchant Issued Refund", "22 January 2021"), //
                     transaction(1.44, "Interest Refund", "22 January 2021"), //
                     transaction(400.0, "Payout Refund", "26 January 2021"), //
-                    transaction(2.57, "Interest Refund", "26 January 2021") //
+                    transaction(2.58, "Interest Refund", "26 January 2021") //
             );
         });
         runAt("1 April 2021", () -> {

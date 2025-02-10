@@ -45,7 +45,8 @@ public class RepaymentPeriod {
     @Getter
     private final LocalDate dueDate;
     @Getter
-    private final List<InterestPeriod> interestPeriods;
+    @Setter
+    private List<InterestPeriod> interestPeriods;
     @Setter
     @Getter
     private Money emi;
@@ -73,7 +74,7 @@ public class RepaymentPeriod {
         this.interestPeriods = new ArrayList<>();
         // There is always at least 1 interest period, by default with same from-due date as repayment period
         getInterestPeriods().add(new InterestPeriod(this, getFromDate(), getDueDate(), BigDecimal.ZERO, BigDecimal.ZERO, getZero(mc),
-                getZero(mc), getZero(mc), mc));
+                getZero(mc), getZero(mc), mc, false));
         this.paidInterest = getZero(mc);
         this.paidPrincipal = getZero(mc);
     }

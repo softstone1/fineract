@@ -21,6 +21,7 @@ package org.apache.fineract.portfolio.loanproduct.domain;
 import java.util.List;
 import org.apache.fineract.infrastructure.core.domain.ExternalId;
 import org.apache.fineract.portfolio.delinquency.domain.DelinquencyBucket;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -36,4 +37,8 @@ public interface LoanProductRepository extends JpaRepository<LoanProduct, Long>,
     List<LoanProduct> findByDelinquencyBucketNotNull();
 
     LoanProduct findByExternalId(ExternalId externalId);
+
+    @Override
+    @Query("SELECT CASE WHEN COUNT(loanProduct)>0 THEN TRUE ELSE FALSE END FROM LoanProduct loanProduct WHERE loanProduct.id = :loanProductId")
+    boolean existsById(@NotNull @Param("loanProductId") Long loanProductId);
 }

@@ -66,6 +66,7 @@ public class LoanProductTestBuilder {
     public static final String RECALCULATION_STRATEGY_RESCHEDULE_NEXT_REPAYMENTS = "1";
     public static final String RECALCULATION_STRATEGY_REDUCE_NUMBER_OF_INSTALLMENTS = "2";
     public static final String RECALCULATION_STRATEGY_REDUCE_EMI_AMOUN = "3";
+    public static final String RECALCULATION_STRATEGY_ADJUST_LAST_UNPAID_PERIOD = "4";
 
     public static final String RECALCULATION_COMPOUNDING_METHOD_NONE = "0";
     public static final String RECALCULATION_COMPOUNDING_METHOD_INTEREST = "1";
@@ -164,6 +165,7 @@ public class LoanProductTestBuilder {
     private FullAccountingConfig fullAccountingConfig;
     private List<String> supportedInterestRefundTypes = null;
     private String chargeOffBehaviour;
+    private boolean interestRecognitionOnDisbursementDate = false;
 
     public String build() {
         final HashMap<String, Object> map = build(null, null);
@@ -322,6 +324,9 @@ public class LoanProductTestBuilder {
         }
         if (enableAutoRepaymentForDownPayment) {
             map.put("enableAutoRepaymentForDownPayment", enableAutoRepaymentForDownPayment);
+        }
+        if (interestRecognitionOnDisbursementDate) {
+            map.put("interestRecognitionOnDisbursementDate", interestRecognitionOnDisbursementDate);
         }
 
         if (this.repaymentStartDateType != null) {

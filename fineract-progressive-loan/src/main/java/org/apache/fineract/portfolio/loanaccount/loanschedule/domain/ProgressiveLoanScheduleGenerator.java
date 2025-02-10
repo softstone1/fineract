@@ -37,6 +37,7 @@ import org.apache.fineract.organisation.monetary.domain.MonetaryCurrency;
 import org.apache.fineract.organisation.monetary.domain.Money;
 import org.apache.fineract.portfolio.loanaccount.data.DisbursementData;
 import org.apache.fineract.portfolio.loanaccount.data.HolidayDetailDTO;
+import org.apache.fineract.portfolio.loanaccount.data.LoanTermVariationsData;
 import org.apache.fineract.portfolio.loanaccount.data.OutstandingAmountsDTO;
 import org.apache.fineract.portfolio.loanaccount.domain.Loan;
 import org.apache.fineract.portfolio.loanaccount.domain.LoanCharge;
@@ -88,8 +89,11 @@ public class ProgressiveLoanScheduleGenerator implements LoanScheduleGenerator {
         // generate list of proposed schedule due dates
         final List<LoanScheduleModelRepaymentPeriod> expectedRepaymentPeriods = scheduledDateGenerator.generateRepaymentPeriods(mc,
                 periodStartDate, loanApplicationTerms, holidayDetailDTO);
+        List<LoanTermVariationsData> loanTermVariations = loanApplicationTerms.getLoanTermVariations() != null
+                ? loanApplicationTerms.getLoanTermVariations().getExceptionData()
+                : null;
         final ProgressiveLoanInterestScheduleModel interestScheduleModel = emiCalculator.generatePeriodInterestScheduleModel(
-                expectedRepaymentPeriods, loanApplicationTerms.toLoanProductRelatedDetailMinimumData(),
+                expectedRepaymentPeriods, loanApplicationTerms.toLoanProductRelatedDetailMinimumData(), loanTermVariations,
                 loanApplicationTerms.getInstallmentAmountInMultiplesOf(), mc);
         final List<LoanScheduleModelPeriod> periods = new ArrayList<>(expectedRepaymentPeriods.size());
 
@@ -209,16 +213,22 @@ public class ProgressiveLoanScheduleGenerator implements LoanScheduleGenerator {
 
     private void applyInterestRateChangesOnPeriod(final LoanApplicationTerms loanApplicationTerms,
             final LoanScheduleModelRepaymentPeriod repaymentPeriod, final ProgressiveLoanInterestScheduleModel interestScheduleModel) {
-        if (loanApplicationTerms.getLoanTermVariations() != null) {
-            for (var interestRateChange : loanApplicationTerms.getLoanTermVariations().getInterestRateFromInstallment()) {
-                final LocalDate interestRateSubmittedOnDate = interestRateChange.getTermVariationApplicableFrom();
-                final BigDecimal newInterestRate = interestRateChange.getDecimalValue();
-                if (interestRateSubmittedOnDate.isAfter(repaymentPeriod.getFromDate())
-                        && !interestRateSubmittedOnDate.isAfter(repaymentPeriod.getDueDate())) {
-                    emiCalculator.changeInterestRate(interestScheduleModel, interestRateSubmittedOnDate, newInterestRate);
-                }
-            }
+        if (loanApplicationTerms.getLoanTermVariations() == null) {
+            return;
         }
+
+        loanApplicationTerms.getLoanTermVariations().getInterestRateFromInstallment().stream()
+                .filter(change -> isDateWithinPeriod(change.getTermVariationApplicableFrom(), repaymentPeriod))
+                .forEach(change -> emiCalculator.changeInterestRate(interestScheduleModel, change.getTermVariationApplicableFrom(),
+                        change.getDecimalValue()));
+
+        loanApplicationTerms.getLoanTermVariations().getInterestPauseVariations().stream()
+                .filter(pause -> isDateWithinPeriod(pause.getTermVariationApplicableFrom(), repaymentPeriod)).forEach(pause -> emiCalculator
+                        .applyInterestPause(interestScheduleModel, pause.getTermVariationApplicableFrom(), pause.getDateValue()));
+    }
+
+    private boolean isDateWithinPeriod(final LocalDate date, final LoanScheduleModelRepaymentPeriod period) {
+        return date.isAfter(period.getFromDate()) && !date.isAfter(period.getDueDate());
     }
 
     private void prepareDisbursementsOnLoanApplicationTerms(final LoanApplicationTerms loanApplicationTerms) {

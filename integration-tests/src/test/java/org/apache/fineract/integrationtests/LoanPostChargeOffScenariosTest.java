@@ -72,7 +72,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(LoanTestLifecycleExtension.class)
-public class LoanPostChargeOffScenariosTest {
+public class LoanPostChargeOffScenariosTest extends BaseLoanIntegrationTest {
 
     private static final DateTimeFormatter DATE_FORMATTER = new DateTimeFormatterBuilder().appendPattern("dd MMMM yyyy").toFormatter();
     private ResponseSpecification responseSpec;
@@ -143,172 +143,177 @@ public class LoanPostChargeOffScenariosTest {
 
     @Test
     public void postChargeOffAddBackdatedTransactionTest() {
-        String loanExternalIdStr = UUID.randomUUID().toString();
-        final Integer loanProductID = createLoanProductWithPeriodicAccrualAccounting();
-        final Integer clientId = clientHelper.createClient(ClientHelper.defaultClientCreationRequest()).getClientId().intValue();
-        final Integer loanId = createLoanAccount(clientId, loanProductID, loanExternalIdStr);
+        runAt("14 September 2022", () -> {
+            String loanExternalIdStr = UUID.randomUUID().toString();
+            final Integer loanProductID = createLoanProductWithPeriodicAccrualAccounting();
+            final Integer clientId = clientHelper.createClient(ClientHelper.defaultClientCreationRequest()).getClientId().intValue();
+            final Integer loanId = createLoanAccount(clientId, loanProductID, loanExternalIdStr);
 
-        // apply charges
-        Integer feeCharge = ChargesHelper.createCharges(requestSpec, responseSpec,
-                ChargesHelper.getLoanSpecifiedDueDateJSON(ChargesHelper.CHARGE_CALCULATION_TYPE_FLAT, "10", false));
+            // apply charges
+            Integer feeCharge = ChargesHelper.createCharges(requestSpec, responseSpec,
+                    ChargesHelper.getLoanSpecifiedDueDateJSON(ChargesHelper.CHARGE_CALCULATION_TYPE_FLAT, "10", false));
 
-        LocalDate targetDate = LocalDate.of(2022, 9, 5);
-        final String feeCharge1AddedDate = DATE_FORMATTER.format(targetDate);
-        Integer feeLoanChargeId = loanTransactionHelper.addChargesForLoan(loanId,
-                LoanTransactionHelper.getSpecifiedDueDateChargesForLoanAsJSON(String.valueOf(feeCharge), feeCharge1AddedDate, "10"));
+            LocalDate targetDate = LocalDate.of(2022, 9, 5);
+            final String feeCharge1AddedDate = DATE_FORMATTER.format(targetDate);
+            Integer feeLoanChargeId = loanTransactionHelper.addChargesForLoan(loanId,
+                    LoanTransactionHelper.getSpecifiedDueDateChargesForLoanAsJSON(String.valueOf(feeCharge), feeCharge1AddedDate, "10"));
 
-        // set loan as chargeoff
-        String randomText = Utils.randomStringGenerator("en", 5) + Utils.randomNumberGenerator(6) + Utils.randomStringGenerator("is", 5);
-        Integer chargeOffReasonId = CodeHelper.createChargeOffCodeValue(requestSpec, responseSpec, randomText, 1);
-        String transactionExternalId = UUID.randomUUID().toString();
-        PostLoansLoanIdTransactionsResponse chargeOffTransaction = loanTransactionHelper.chargeOffLoan((long) loanId,
-                new PostLoansLoanIdTransactionsRequest().transactionDate("14 September 2022").locale("en").dateFormat("dd MMMM yyyy")
-                        .externalId(transactionExternalId).chargeOffReasonId((long) chargeOffReasonId));
+            // set loan as chargeoff
+            String randomText = Utils.randomStringGenerator("en", 5) + Utils.randomNumberGenerator(6)
+                    + Utils.randomStringGenerator("is", 5);
+            Integer chargeOffReasonId = CodeHelper.createChargeOffCodeValue(requestSpec, responseSpec, randomText, 1);
+            String transactionExternalId = UUID.randomUUID().toString();
+            PostLoansLoanIdTransactionsResponse chargeOffTransaction = loanTransactionHelper.chargeOffLoan((long) loanId,
+                    new PostLoansLoanIdTransactionsRequest().transactionDate("14 September 2022").locale("en").dateFormat("dd MMMM yyyy")
+                            .externalId(transactionExternalId).chargeOffReasonId((long) chargeOffReasonId));
 
-        GetLoansLoanIdResponse loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
-        assertTrue(loanDetails.getStatus().getActive());
-        assertTrue(loanDetails.getChargedOff());
+            GetLoansLoanIdResponse loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
+            assertTrue(loanDetails.getStatus().getActive());
+            assertTrue(loanDetails.getChargedOff());
 
-        // verify Journal Entries For ChargeOff Transaction
-        GetJournalEntriesTransactionIdResponse journalEntriesForChargeOff = journalEntryHelper
-                .getJournalEntries("L" + chargeOffTransaction.getResourceId().toString());
+            // verify Journal Entries For ChargeOff Transaction
+            GetJournalEntriesTransactionIdResponse journalEntriesForChargeOff = journalEntryHelper
+                    .getJournalEntries("L" + chargeOffTransaction.getResourceId().toString());
 
-        assertNotNull(journalEntriesForChargeOff);
-        List<JournalEntryTransactionItem> journalEntries = journalEntriesForChargeOff.getPageItems();
-        assertEquals(4, journalEntries.size());
+            assertNotNull(journalEntriesForChargeOff);
+            List<JournalEntryTransactionItem> journalEntries = journalEntriesForChargeOff.getPageItems();
+            assertEquals(4, journalEntries.size());
 
-        assertEquals(1000, journalEntries.get(3).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(3).getTransactionDate());
-        assertEquals(loansReceivable.getAccountID().longValue(), journalEntries.get(3).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(3).getEntryType().getValue());
+            assertEquals(1000, journalEntries.get(3).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(3).getTransactionDate());
+            assertEquals(loansReceivable.getAccountID().longValue(), journalEntries.get(3).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(3).getEntryType().getValue());
 
-        assertEquals(10, journalEntries.get(2).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(2).getTransactionDate());
-        assertEquals(interestFeeReceivable.getAccountID().longValue(), journalEntries.get(2).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(2).getEntryType().getValue());
+            assertEquals(10, journalEntries.get(2).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(2).getTransactionDate());
+            assertEquals(interestFeeReceivable.getAccountID().longValue(), journalEntries.get(2).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(2).getEntryType().getValue());
 
-        assertEquals(1000, journalEntries.get(1).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(1).getTransactionDate());
-        assertEquals(creditLossBadDebt.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
-        assertEquals("DEBIT", journalEntries.get(1).getEntryType().getValue());
+            assertEquals(1000, journalEntries.get(1).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(1).getTransactionDate());
+            assertEquals(creditLossBadDebt.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
+            assertEquals("DEBIT", journalEntries.get(1).getEntryType().getValue());
 
-        assertEquals(10, journalEntries.get(0).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(0).getTransactionDate());
-        assertEquals(feeChargeOff.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
-        assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
+            assertEquals(10, journalEntries.get(0).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 14), journalEntries.get(0).getTransactionDate());
+            assertEquals(feeChargeOff.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
+            assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
 
-        // make Repayment before chargeoff date
-        final PostLoansLoanIdTransactionsResponse repaymentTransaction = loanTransactionHelper.makeLoanRepayment(loanExternalIdStr,
-                new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("7 September 2022").locale("en")
-                        .transactionAmount(100.0));
+            // make Repayment before chargeoff date
+            final PostLoansLoanIdTransactionsResponse repaymentTransaction = loanTransactionHelper.makeLoanRepayment(loanExternalIdStr,
+                    new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("7 September 2022").locale("en")
+                            .transactionAmount(100.0));
 
-        loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
-        assertTrue(loanDetails.getStatus().getActive());
-        assertTrue(loanDetails.getChargedOff());
+            loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
+            assertTrue(loanDetails.getStatus().getActive());
+            assertTrue(loanDetails.getChargedOff());
 
-        // verify Journal Entries for Repayment transaction
+            // verify Journal Entries for Repayment transaction
 
-        GetJournalEntriesTransactionIdResponse journalEntriesForRepayment = journalEntryHelper
-                .getJournalEntries("L" + repaymentTransaction.getResourceId().toString());
-        assertNotNull(journalEntriesForRepayment);
+            GetJournalEntriesTransactionIdResponse journalEntriesForRepayment = journalEntryHelper
+                    .getJournalEntries("L" + repaymentTransaction.getResourceId().toString());
+            assertNotNull(journalEntriesForRepayment);
 
-        journalEntries = journalEntriesForRepayment.getPageItems();
-        assertEquals(3, journalEntries.size());
+            journalEntries = journalEntriesForRepayment.getPageItems();
+            assertEquals(3, journalEntries.size());
 
-        assertEquals(90, journalEntries.get(2).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 7), journalEntries.get(2).getTransactionDate());
-        assertEquals(loansReceivable.getAccountID().longValue(), journalEntries.get(2).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(2).getEntryType().getValue());
+            assertEquals(90, journalEntries.get(2).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 7), journalEntries.get(2).getTransactionDate());
+            assertEquals(loansReceivable.getAccountID().longValue(), journalEntries.get(2).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(2).getEntryType().getValue());
 
-        assertEquals(10, journalEntries.get(1).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 7), journalEntries.get(1).getTransactionDate());
-        assertEquals(interestFeeReceivable.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
+            assertEquals(10, journalEntries.get(1).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 7), journalEntries.get(1).getTransactionDate());
+            assertEquals(interestFeeReceivable.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
 
-        assertEquals(100, journalEntries.get(0).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 7), journalEntries.get(0).getTransactionDate());
-        assertEquals(suspenseClearingAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
-        assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
+            assertEquals(100, journalEntries.get(0).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 7), journalEntries.get(0).getTransactionDate());
+            assertEquals(suspenseClearingAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
+            assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
 
-        // Goodwill Credit before chargeoff date
-        final PostLoansLoanIdTransactionsResponse goodwillCredit = loanTransactionHelper.makeGoodwillCredit((long) loanId,
-                new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("10 September 2022").locale("en")
-                        .transactionAmount(100.0));
+            // Goodwill Credit before chargeoff date
+            final PostLoansLoanIdTransactionsResponse goodwillCredit = loanTransactionHelper.makeGoodwillCredit((long) loanId,
+                    new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("10 September 2022").locale("en")
+                            .transactionAmount(100.0));
 
-        loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
-        assertTrue(loanDetails.getStatus().getActive());
-        assertTrue(loanDetails.getChargedOff());
+            loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
+            assertTrue(loanDetails.getStatus().getActive());
+            assertTrue(loanDetails.getChargedOff());
 
-        // verify Journal Entries for Goodwill Credit
-        GetJournalEntriesTransactionIdResponse journalEntriesForGoodWillCredit = journalEntryHelper
-                .getJournalEntries("L" + goodwillCredit.getResourceId().toString());
-        assertNotNull(journalEntriesForGoodWillCredit);
+            // verify Journal Entries for Goodwill Credit
+            GetJournalEntriesTransactionIdResponse journalEntriesForGoodWillCredit = journalEntryHelper
+                    .getJournalEntries("L" + goodwillCredit.getResourceId().toString());
+            assertNotNull(journalEntriesForGoodWillCredit);
 
-        journalEntries = journalEntriesForGoodWillCredit.getPageItems();
-        assertEquals(2, journalEntries.size());
+            journalEntries = journalEntriesForGoodWillCredit.getPageItems();
+            assertEquals(2, journalEntries.size());
 
-        assertEquals(100, journalEntries.get(1).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 10), journalEntries.get(1).getTransactionDate());
-        assertEquals(loansReceivable.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
+            assertEquals(100, journalEntries.get(1).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 10), journalEntries.get(1).getTransactionDate());
+            assertEquals(loansReceivable.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
 
-        assertEquals(100, journalEntries.get(0).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 10), journalEntries.get(0).getTransactionDate());
-        assertEquals(goodwillExpenseAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
-        assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
+            assertEquals(100, journalEntries.get(0).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 10), journalEntries.get(0).getTransactionDate());
+            assertEquals(goodwillExpenseAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
+            assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
 
-        // make Repayment after chargeoff date
-        final PostLoansLoanIdTransactionsResponse repaymentTransaction_1 = loanTransactionHelper.makeLoanRepayment(loanExternalIdStr,
-                new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("15 September 2022").locale("en")
-                        .transactionAmount(100.0));
+            updateBusinessDate("16 September 2022");
 
-        loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
-        assertTrue(loanDetails.getStatus().getActive());
-        assertTrue(loanDetails.getChargedOff());
+            // make Repayment after chargeoff date
+            final PostLoansLoanIdTransactionsResponse repaymentTransaction_1 = loanTransactionHelper.makeLoanRepayment(loanExternalIdStr,
+                    new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("15 September 2022").locale("en")
+                            .transactionAmount(100.0));
 
-        // verify Journal Entries for Repayment transaction
-        journalEntriesForRepayment = journalEntryHelper.getJournalEntries("L" + repaymentTransaction_1.getResourceId().toString());
+            loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
+            assertTrue(loanDetails.getStatus().getActive());
+            assertTrue(loanDetails.getChargedOff());
 
-        assertNotNull(journalEntriesForRepayment);
+            // verify Journal Entries for Repayment transaction
+            journalEntriesForRepayment = journalEntryHelper.getJournalEntries("L" + repaymentTransaction_1.getResourceId().toString());
 
-        journalEntries = journalEntriesForRepayment.getPageItems();
-        assertEquals(2, journalEntries.size());
+            assertNotNull(journalEntriesForRepayment);
 
-        assertEquals(100, journalEntries.get(1).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 15), journalEntries.get(1).getTransactionDate());
-        assertEquals(recoveries.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
+            journalEntries = journalEntriesForRepayment.getPageItems();
+            assertEquals(2, journalEntries.size());
 
-        assertEquals(100, journalEntries.get(0).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 15), journalEntries.get(0).getTransactionDate());
-        assertEquals(suspenseClearingAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
-        assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
+            assertEquals(100, journalEntries.get(1).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 15), journalEntries.get(1).getTransactionDate());
+            assertEquals(recoveries.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
 
-        // Goodwill Credit after chargeoff date
-        final PostLoansLoanIdTransactionsResponse goodwillCredit_1 = loanTransactionHelper.makeGoodwillCredit((long) loanId,
-                new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("16 September 2022").locale("en")
-                        .transactionAmount(100.0));
+            assertEquals(100, journalEntries.get(0).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 15), journalEntries.get(0).getTransactionDate());
+            assertEquals(suspenseClearingAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
+            assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
 
-        loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
-        assertTrue(loanDetails.getStatus().getActive());
-        assertTrue(loanDetails.getChargedOff());
+            // Goodwill Credit after chargeoff date
+            final PostLoansLoanIdTransactionsResponse goodwillCredit_1 = loanTransactionHelper.makeGoodwillCredit((long) loanId,
+                    new PostLoansLoanIdTransactionsRequest().dateFormat("dd MMMM yyyy").transactionDate("16 September 2022").locale("en")
+                            .transactionAmount(100.0));
 
-        // verify Journal Entries for Goodwill Credit
-        journalEntriesForGoodWillCredit = journalEntryHelper.getJournalEntries("L" + goodwillCredit_1.getResourceId().toString());
-        assertNotNull(journalEntriesForGoodWillCredit);
+            loanDetails = loanTransactionHelper.getLoanDetails((long) loanId);
+            assertTrue(loanDetails.getStatus().getActive());
+            assertTrue(loanDetails.getChargedOff());
 
-        journalEntries = journalEntriesForGoodWillCredit.getPageItems();
-        assertEquals(2, journalEntries.size());
+            // verify Journal Entries for Goodwill Credit
+            journalEntriesForGoodWillCredit = journalEntryHelper.getJournalEntries("L" + goodwillCredit_1.getResourceId().toString());
+            assertNotNull(journalEntriesForGoodWillCredit);
 
-        assertEquals(100, journalEntries.get(1).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 16), journalEntries.get(1).getTransactionDate());
-        assertEquals(recoveries.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
-        assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
+            journalEntries = journalEntriesForGoodWillCredit.getPageItems();
+            assertEquals(2, journalEntries.size());
 
-        assertEquals(100, journalEntries.get(0).getAmount());
-        assertEquals(LocalDate.of(2022, 9, 16), journalEntries.get(0).getTransactionDate());
-        assertEquals(goodwillExpenseAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
-        assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
+            assertEquals(100, journalEntries.get(1).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 16), journalEntries.get(1).getTransactionDate());
+            assertEquals(recoveries.getAccountID().longValue(), journalEntries.get(1).getGlAccountId().longValue());
+            assertEquals("CREDIT", journalEntries.get(1).getEntryType().getValue());
+
+            assertEquals(100, journalEntries.get(0).getAmount());
+            assertEquals(LocalDate.of(2022, 9, 16), journalEntries.get(0).getTransactionDate());
+            assertEquals(goodwillExpenseAccount.getAccountID().longValue(), journalEntries.get(0).getGlAccountId().longValue());
+            assertEquals("DEBIT", journalEntries.get(0).getEntryType().getValue());
+        });
     }
 
     @Test

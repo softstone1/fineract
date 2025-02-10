@@ -24,20 +24,27 @@ import io.restassured.specification.ResponseSpecification;
 import java.util.HashMap;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.fineract.integrationtests.client.IntegrationTest;
 import org.apache.fineract.integrationtests.common.Utils;
 
 @Slf4j
-public class InlineLoanCOBHelper extends IntegrationTest {
+public class InlineLoanCOBHelper {
 
     private final RequestSpecification requestSpec;
     private final ResponseSpecification responseSpec;
 
+    // TODO: Rewrite to use fineract-client instead!
+    // Example: org.apache.fineract.integrationtests.common.loans.LoanTransactionHelper.disburseLoan(java.lang.Long,
+    // org.apache.fineract.client.models.PostLoansLoanIdRequest)
+    @Deprecated(forRemoval = true)
     public InlineLoanCOBHelper(final RequestSpecification requestSpec, final ResponseSpecification responseSpec) {
         this.requestSpec = requestSpec;
         this.responseSpec = responseSpec;
     }
 
+    // TODO: Rewrite to use fineract-client instead!
+    // Example: org.apache.fineract.integrationtests.common.loans.LoanTransactionHelper.disburseLoan(java.lang.Long,
+    // org.apache.fineract.client.models.PostLoansLoanIdRequest)
+    @Deprecated(forRemoval = true)
     public String executeInlineCOB(List<Long> loanIds) {
         final String EXECUTE_INLINE_COB_API = "/fineract-provider/api/v1/jobs/LOAN_COB/inline";
         log.info("------------------EXECUTE INLINE COB----------------------");
@@ -45,6 +52,10 @@ public class InlineLoanCOBHelper extends IntegrationTest {
         return Utils.performServerPost(requestSpec, responseSpec, EXECUTE_INLINE_COB_API, buildInlineCOBRequest(loanIds));
     }
 
+    // TODO: Rewrite to use fineract-client instead!
+    // Example: org.apache.fineract.integrationtests.common.loans.LoanTransactionHelper.disburseLoan(java.lang.Long,
+    // org.apache.fineract.client.models.PostLoansLoanIdRequest)
+    @Deprecated(forRemoval = true)
     public String executeInlineCOB(List<Long> loanIds, String responseAttribute) {
         final String EXECUTE_INLINE_COB_API = "/fineract-provider/api/v1/jobs/LOAN_COB/inline";
         log.info("------------------EXECUTE INLINE COB----------------------");
@@ -53,6 +64,10 @@ public class InlineLoanCOBHelper extends IntegrationTest {
                 responseAttribute);
     }
 
+    // TODO: Rewrite to use fineract-client instead!
+    // Example: org.apache.fineract.integrationtests.common.loans.LoanTransactionHelper.disburseLoan(java.lang.Long,
+    // org.apache.fineract.client.models.PostLoansLoanIdRequest)
+    @Deprecated(forRemoval = true)
     private static String buildInlineCOBRequest(List<Long> loanIds) {
         final HashMap<String, List<Long>> map = new HashMap<>();
         map.put("loanIds", loanIds);

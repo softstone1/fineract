@@ -185,7 +185,10 @@ public abstract class AbstractLoanRepaymentScheduleTransactionProcessor implemen
                      * Check if the transaction amounts have changed. If so, reverse the original transaction and update
                      * changedTransactionDetail accordingly
                      **/
-                    if (LoanTransaction.transactionAmountsMatch(currency, loanTransaction, newLoanTransaction)) {
+                    if (newLoanTransaction.isReversed()) {
+                        loanTransaction.reverse();
+                        changedTransactionDetail.getNewTransactionMappings().put(loanTransaction.getId(), loanTransaction);
+                    } else if (LoanTransaction.transactionAmountsMatch(currency, loanTransaction, newLoanTransaction)) {
                         loanTransaction.updateLoanTransactionToRepaymentScheduleMappings(
                                 newLoanTransaction.getLoanTransactionToRepaymentScheduleMappings());
                     } else {
@@ -218,12 +221,7 @@ public abstract class AbstractLoanRepaymentScheduleTransactionProcessor implemen
 
     protected void calculateAccrualActivity(LoanTransaction loanTransaction, MonetaryCurrency currency,
             List<LoanRepaymentScheduleInstallment> installments) {
-        loanTransaction.resetDerivedComponents();
-        // determine how much is outstanding total and breakdown for principal, interest and charges
-        final Money principalPortion = Money.zero(currency);
-        Money interestPortion = Money.zero(currency);
-        Money feeChargesPortion = Money.zero(currency);
-        Money penaltychargesPortion = Money.zero(currency);
+
         final int firstNormalInstallmentNumber = LoanRepaymentScheduleProcessingWrapper.fetchFirstNormalInstallmentNumber(installments);
 
         final LoanRepaymentScheduleInstallment currentInstallment = installments.stream()
@@ -231,11 +229,18 @@ public abstract class AbstractLoanRepaymentScheduleTransactionProcessor implemen
                         installment.getInstallmentNumber().equals(firstNormalInstallmentNumber)))
                 .findFirst().orElseThrow();
 
-        interestPortion = interestPortion.plus(currentInstallment.getInterestCharged(currency));
-        feeChargesPortion = feeChargesPortion.plus(currentInstallment.getFeeChargesCharged(currency));
-        penaltychargesPortion = penaltychargesPortion.plus(currentInstallment.getPenaltyChargesCharged(currency));
-
-        loanTransaction.updateComponentsAndTotal(principalPortion, interestPortion, feeChargesPortion, penaltychargesPortion);
+        if (currentInstallment.isNotFullyPaidOff() && (currentInstallment.getDueDate().isAfter(loanTransaction.getTransactionDate())
+                || (currentInstallment.getDueDate().isEqual(loanTransaction.getTransactionDate())
+                        && loanTransaction.getTransactionDate().equals(DateUtils.getBusinessLocalDate())))) {
+            loanTransaction.reverse();
+        } else {
+            loanTransaction.resetDerivedComponents();
+            final Money principalPortion = Money.zero(currency);
+            Money interestPortion = currentInstallment.getInterestCharged(currency);
+            Money feeChargesPortion = currentInstallment.getFeeChargesCharged(currency);
+            Money penaltyChargesPortion = currentInstallment.getPenaltyChargesCharged(currency);
+            loanTransaction.updateComponentsAndTotal(principalPortion, interestPortion, feeChargesPortion, penaltyChargesPortion);
+        }
     }
 
     private void recalculateAccrualActivityTransaction(ChangedTransactionDetail changedTransactionDetail, LoanTransaction loanTransaction,

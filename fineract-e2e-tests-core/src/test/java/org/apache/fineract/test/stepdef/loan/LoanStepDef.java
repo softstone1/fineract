@@ -19,9 +19,12 @@
 package org.apache.fineract.test.stepdef.loan;
 
 import static org.apache.fineract.test.data.TransactionProcessingStrategyCode.ADVANCED_PAYMENT_ALLOCATION;
+import static org.apache.fineract.test.data.loanproduct.DefaultLoanProduct.LP2_ADV_PYMNT_ACCELERATE_MATURITY_CHARGE_OFF_BEHAVIOUR;
 import static org.apache.fineract.test.data.loanproduct.DefaultLoanProduct.LP2_ADV_PYMNT_INTEREST_DAILY_INTEREST_RECALCULATION_ZERO_INTEREST_CHARGE_OFF_BEHAVIOUR;
+import static org.apache.fineract.test.data.loanproduct.DefaultLoanProduct.LP2_ADV_PYMNT_ZERO_INTEREST_CHARGE_OFF_BEHAVIOUR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -1402,6 +1405,24 @@ public class LoanStepDef extends AbstractStepDef {
                 .isEqualTo(loanId).extractingData(LoanTransactionDataV1::getId).isEqualTo(chargeOffResponse.body().getResourceId());
     }
 
+    @And("Admin tries to charge-off the loan on {string} but fails due to monetary activity after the charge-off date")
+    public void chargeOffLoanWithError(final String transactionDate) throws IOException {
+        final Response<PostLoansResponse> loanResponse = testContext().get(TestContextKey.LOAN_CREATE_RESPONSE);
+        final long loanId = loanResponse.body().getLoanId();
+
+        final PostLoansLoanIdTransactionsRequest chargeOffRequest = LoanRequestFactory.defaultChargeOffRequest()
+                .transactionDate(transactionDate).dateFormat(DATE_FORMAT).locale(DEFAULT_LOCALE);
+
+        final Response<PostLoansLoanIdTransactionsResponse> chargeOffResponse = loanTransactionsApi
+                .executeLoanTransaction(loanId, chargeOffRequest, "charge-off").execute();
+        final ErrorResponse errorDetails = ErrorResponse.from(chargeOffResponse);
+        final String expectedErrorMessage = "Loan: " + loanId
+                + " charge-off cannot be executed. Loan has monetary activity after the charge-off transaction date!";
+        assertThat(errorDetails.getSingleError().getDeveloperMessage()).isEqualTo(expectedErrorMessage);
+
+        assertFalse(chargeOffResponse.isSuccessful());
+    }
+
     @Then("Charge-off attempt on {string} results an error")
     public void chargeOffOnLoanWithInterestFails(String transactionDate) throws IOException {
         Response<PostLoansResponse> loanResponse = testContext().get(TestContextKey.LOAN_CREATE_RESPONSE);
@@ -2767,13 +2788,28 @@ public class LoanStepDef extends AbstractStepDef {
         eventCheckHelper.createLoanEventCheck(response);
     }
 
-    @When("Admin creates a new zero charge-off Loan with date: {string}")
+    @When("Admin creates a new zero charge-off Loan with interest recalculation and date: {string}")
     public void createLoanWithInterestRecalculationAndZeroChargeOffBehaviour(final String date) throws IOException {
+        createLoanWithLoanBehaviour(date, true, DefaultLoanProduct
+                .valueOf(LP2_ADV_PYMNT_INTEREST_DAILY_INTEREST_RECALCULATION_ZERO_INTEREST_CHARGE_OFF_BEHAVIOUR.getName()));
+    }
+
+    @When("Admin creates a new zero charge-off Loan without interest recalculation and with date: {string}")
+    public void createLoanWithoutInterestRecalculationAndZeroChargeOffBehaviour(final String date) throws IOException {
+        createLoanWithLoanBehaviour(date, false, DefaultLoanProduct.valueOf(LP2_ADV_PYMNT_ZERO_INTEREST_CHARGE_OFF_BEHAVIOUR.getName()));
+    }
+
+    @When("Admin creates a new accelerate maturity charge-off Loan without interest recalculation and with date: {string}")
+    public void createLoanWithoutInterestRecalculationAndAccelerateMaturityChargeOffBehaviour(final String date) throws IOException {
+        createLoanWithLoanBehaviour(date, false,
+                DefaultLoanProduct.valueOf(LP2_ADV_PYMNT_ACCELERATE_MATURITY_CHARGE_OFF_BEHAVIOUR.getName()));
+    }
+
+    private void createLoanWithLoanBehaviour(final String date, final boolean isInterestRecalculation, final DefaultLoanProduct product)
+            throws IOException {
         final Response<PostClientsResponse> clientResponse = testContext().get(TestContextKey.CLIENT_CREATE_RESPONSE);
         final Long clientId = clientResponse.body().getClientId();
 
-        final DefaultLoanProduct product = DefaultLoanProduct
-                .valueOf(LP2_ADV_PYMNT_INTEREST_DAILY_INTEREST_RECALCULATION_ZERO_INTEREST_CHARGE_OFF_BEHAVIOUR.getName());
         final Long loanProductId = loanProductResolver.resolve(product);
 
         final PostLoansRequest loansRequest = loanRequestFactory.defaultLoansRequest(clientId).productId(loanProductId)
@@ -2785,7 +2821,8 @@ public class LoanStepDef extends AbstractStepDef {
                 .interestRateFrequencyType(3)//
                 .interestRatePerPeriod(new BigDecimal(7))//
                 .interestType(InterestType.DECLINING_BALANCE.value)//
-                .interestCalculationPeriodType(InterestCalculationPeriodTime.DAILY.value)//
+                .interestCalculationPeriodType(isInterestRecalculation ? InterestCalculationPeriodTime.DAILY.value
+                        : InterestCalculationPeriodTime.SAME_AS_REPAYMENT_PERIOD.value)//
                 .transactionProcessingStrategyCode(ADVANCED_PAYMENT_ALLOCATION.value);
 
         final Response<PostLoansResponse> response = loansApi.calculateLoanScheduleOrSubmitLoanApplication(loansRequest, "").execute();

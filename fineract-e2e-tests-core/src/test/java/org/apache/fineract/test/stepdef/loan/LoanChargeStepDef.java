@@ -101,6 +101,7 @@ public class LoanChargeStepDef extends AbstractStepDef {
                 .execute();
         ErrorHelper.checkSuccessfulApiCall(loanChargeResponse);
         testContext().set(TestContextKey.ADD_DUE_DATE_CHARGE_RESPONSE, loanChargeResponse);
+        testContext().set(TestContextKey.ADD_NSF_FEE_RESPONSE, loanChargeResponse);
 
         addChargeEventCheck(loanChargeResponse);
     }

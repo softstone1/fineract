@@ -24,10 +24,11 @@ asciidoctorj {
 
     attributes = [
         version: "${project.version}",
+        docdate: new Date(),
         generated: "${buildDir}/generated/asciidoc",
-        imagesdir: "${projectDir}/src/docs/en/images",
-        diagramsdir: "${projectDir}/src/docs/en/diagrams",
-        years: '2015-2024',
+        imagesdir: "${buildDir}/generated/images",
+        diagramsdir: "${buildDir}/generated/diagrams",
+        years: '2015-2025',
         revnumber: "${project.version}".toString(),
         rootdir: "${rootDir}".toString(),
         baseurl: 'fineract.apache.org',
@@ -59,6 +60,16 @@ asciidoctor {
     dependsOn(':fineract-client:clean', ':fineract-client:buildAsciidoc')
 }
 
+task copyImages(type: Copy) {
+    from "${projectDir}/src/docs/en/images"
+    into "${buildDir}/generated/images"
+}
+
+task copyDiagrams(type: Copy) {
+    from "${projectDir}/src/docs/en/diagrams"
+    into "${buildDir}/generated/diagrams"
+}
+
 asciidoctorPdf {
     languages 'en'
 
@@ -70,6 +81,8 @@ asciidoctorPdf {
     outputDir 'build/docs/pdf'
 
     logging.captureStandardError LogLevel.INFO
+
+    dependsOn copyImages, copyDiagrams
 
     // TODO: @vidakovic prepare a nicer theme
     // theme 'fineract-default'

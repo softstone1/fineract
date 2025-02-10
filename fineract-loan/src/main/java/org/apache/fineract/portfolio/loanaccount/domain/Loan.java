@@ -2190,13 +2190,9 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
             boolean isBeforeChargeOffDate) {
         final Map<String, Object> accountingBridgeDataChargeOff = new LinkedHashMap<>(
                 getAccountingBridgeDataGenericAttributes(currencyCode, isAccountTransfer));
-        if (isBeforeChargeOffDate) {
-            accountingBridgeDataChargeOff.put("isChargeOff", false);
-            accountingBridgeDataChargeOff.put("isFraud", isFraud());
-        } else {
-            accountingBridgeDataChargeOff.put("isChargeOff", isChargedOff());
-            accountingBridgeDataChargeOff.put("isFraud", isFraud());
-        }
+        accountingBridgeDataChargeOff.put("isChargeOff", !isBeforeChargeOffDate && isChargedOff());
+        accountingBridgeDataChargeOff.put("isFraud", isFraud());
+        accountingBridgeDataChargeOff.put("chargeOffReasonCodeValue", fetchChargeOffReasonId());
         return accountingBridgeDataChargeOff;
     }
 
@@ -2274,6 +2270,8 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
         accountingBridgeData.put("periodicAccrualBasedAccountingEnabled", isPeriodicAccrualAccountingEnabledOnLoanProduct());
         accountingBridgeData.put("isAccountTransfer", isAccountTransfer);
         accountingBridgeData.put("isChargeOff", isChargedOff());
+        accountingBridgeData.put("chargeOffReasonCodeValue", fetchChargeOffReasonId());
+
         accountingBridgeData.put("isFraud", isFraud());
 
         final List<Map<String, Object>> newLoanTransactions = new ArrayList<>();
@@ -2288,6 +2286,10 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
 
         accountingBridgeData.put("newLoanTransactions", newLoanTransactions);
         return accountingBridgeData;
+    }
+
+    private Long fetchChargeOffReasonId() {
+        return isChargedOff() && getChargeOffReason() != null ? getChargeOffReason().getId() : null;
     }
 
     public Money getReceivableInterest(final LocalDate tillDate) {
@@ -2656,12 +2658,20 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
         return BigDecimal.ZERO.compareTo(getLoanRepaymentScheduleDetail().getAnnualNominalInterestRate()) < 0;
     }
 
+    public boolean isInterestBearingAndInterestRecalculationEnabled() {
+        return isInterestBearing() && isInterestRecalculationEnabled();
+    }
+
     public boolean isInterestRecalculationEnabled() {
         return this.loanRepaymentScheduleDetail.isInterestRecalculationEnabled();
     }
 
     public LocalDate getMaturityDate() {
         return this.actualMaturityDate;
+    }
+
+    public boolean isMatured(final LocalDate referenceDate) {
+        return (this.actualMaturityDate != null) ? (referenceDate.compareTo(this.actualMaturityDate) >= 0) : false;
     }
 
     public ChangedTransactionDetail processTransactions() {
@@ -2699,8 +2709,7 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
     }
 
     public LoanScheduleDTO getRecalculatedSchedule(final ScheduleGeneratorDTO generatorDTO) {
-        if (!this.repaymentScheduleDetail().isEnableDownPayment()
-                && (!this.repaymentScheduleDetail().isInterestRecalculationEnabled() || isNpa || isChargedOff())) {
+        if (!isInterestBearingAndInterestRecalculationEnabled() || isNpa || isChargedOff()) {
             return null;
         }
         final InterestMethod interestMethod = this.loanRepaymentScheduleDetail.getInterestMethod();
@@ -2720,7 +2729,7 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
     public OutstandingAmountsDTO fetchPrepaymentDetail(final ScheduleGeneratorDTO scheduleGeneratorDTO, final LocalDate onDate) {
         OutstandingAmountsDTO outstandingAmounts;
 
-        if (this.loanRepaymentScheduleDetail.isInterestRecalculationEnabled()) {
+        if (isInterestBearingAndInterestRecalculationEnabled() && !isChargeOffOnDate(onDate)) {
             final MathContext mc = MoneyHelper.getMathContext();
 
             final InterestMethod interestMethod = this.loanRepaymentScheduleDetail.getInterestMethod();
@@ -3568,5 +3577,24 @@ public class Loan extends AbstractAuditableWithUTCDateTimeCustom<Long> {
 
     public boolean isProgressiveSchedule() {
         return getLoanProductRelatedDetail().getLoanScheduleType() == PROGRESSIVE;
+    }
+
+    public boolean isChargeOffOnDate(final LocalDate onDate) {
+        final LoanTransaction chargeOffTransaction = findChargedOffTransaction();
+        return (chargeOffTransaction == null) ? false : (chargeOffTransaction.getDateOf().compareTo(onDate) <= 0);
+    }
+
+    public boolean hasMonetaryActivityAfter(final LocalDate transactionDate) {
+        for (LoanTransaction transaction : this.getLoanTransactions()) {
+            if (transaction.getTransactionDate().isAfter(transactionDate) && !transaction.isNonMonetaryTransaction()) {
+                return true;
+            }
+        }
+        for (LoanCharge loanCharge : this.getLoanCharges()) {
+            if (!loanCharge.determineIfFullyPaid() && loanCharge.getSubmittedOnDate().isAfter(transactionDate)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

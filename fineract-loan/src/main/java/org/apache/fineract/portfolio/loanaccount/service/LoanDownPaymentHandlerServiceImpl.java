@@ -137,12 +137,12 @@ public class LoanDownPaymentHandlerServiceImpl implements LoanDownPaymentHandler
                 || !currentInstallment.getTotalOutstanding(loan.getCurrency()).isEqualTo(loanTransaction.getAmount(loan.getCurrency()));
 
         if (isTransactionChronologicallyLatest && adjustedTransaction == null
-                && (!reprocess || !loan.repaymentScheduleDetail().isInterestRecalculationEnabled()) && !loan.isForeclosure()) {
+                && (!reprocess || !loan.isInterestBearingAndInterestRecalculationEnabled()) && !loan.isForeclosure()) {
             loanRepaymentScheduleTransactionProcessor.processLatestTransaction(loanTransaction,
                     new TransactionCtx(loan.getCurrency(), loan.getRepaymentScheduleInstallments(), loan.getActiveCharges(),
                             new MoneyHolder(loan.getTotalOverpaidAsMoney()), null));
             reprocess = false;
-            if (loan.repaymentScheduleDetail().isInterestRecalculationEnabled()) {
+            if (loan.isInterestBearingAndInterestRecalculationEnabled()) {
                 if (currentInstallment == null || currentInstallment.isNotFullyPaidOff()) {
                     reprocess = true;
                 } else {
@@ -155,9 +155,13 @@ public class LoanDownPaymentHandlerServiceImpl implements LoanDownPaymentHandler
             }
         }
         if (reprocess) {
-            if (loan.repaymentScheduleDetail().isInterestRecalculationEnabled()
+            if (loan.isInterestBearingAndInterestRecalculationEnabled()
                     && !loan.getLoanProductRelatedDetail().getLoanScheduleType().equals(LoanScheduleType.PROGRESSIVE)) {
                 loanScheduleService.regenerateRepaymentScheduleWithInterestRecalculation(loan, scheduleGeneratorDTO);
+            } else if (loan.getLoanProductRelatedDetail() != null
+                    && loan.getLoanProductRelatedDetail().getLoanScheduleType().equals(LoanScheduleType.PROGRESSIVE)
+                    && loan.getLoanTransactions().stream().anyMatch(LoanTransaction::isChargeOff)) {
+                loanScheduleService.regenerateRepaymentSchedule(loan, scheduleGeneratorDTO);
             }
             changedTransactionDetail = loan.reprocessTransactions();
         }

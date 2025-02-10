@@ -80,32 +80,40 @@ public class ProgressiveLoanSummaryDataProvider extends CommonLoanSummaryDataPro
     @Override
     public BigDecimal computeTotalUnpaidPayableNotDueInterestAmountOnActualPeriod(final Loan loan,
             final Collection<LoanSchedulePeriodData> periods, final LocalDate businessDate, final CurrencyData currency) {
+        if (loan.isMatured(businessDate)) {
+            return BigDecimal.ZERO;
+        }
 
         LoanRepaymentScheduleInstallment loanRepaymentScheduleInstallment = getRelatedRepaymentScheduleInstallment(loan, businessDate);
         if (loan.isInterestBearing() && loanRepaymentScheduleInstallment != null) {
-            List<LoanTransaction> transactionsToReprocess = loan.retrieveListOfTransactionsForReprocessing().stream()
-                    .filter(t -> !t.isAccrualActivity()).toList();
-            Pair<ChangedTransactionDetail, ProgressiveLoanInterestScheduleModel> changedTransactionDetailProgressiveLoanInterestScheduleModelPair = advancedPaymentScheduleTransactionProcessor
-                    .reprocessProgressiveLoanTransactions(loan.getDisbursementDate(), businessDate, transactionsToReprocess,
-                            loan.getCurrency(), loan.getRepaymentScheduleInstallments(), loan.getActiveCharges());
-            ProgressiveLoanInterestScheduleModel model = changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getRight();
-            if (!changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getLeft().getCurrentTransactionToOldId().isEmpty()
-                    || !changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getLeft().getNewTransactionMappings().isEmpty()) {
-                List<Long> replayedTransactions = changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getLeft()
-                        .getNewTransactionMappings().keySet().stream().toList();
-                log.warn("Reprocessed transactions show differences: There are unsaved changes of the following transactions: {}",
-                        replayedTransactions);
-            }
-            if (model != null) {
-                PeriodDueDetails dueAmounts = emiCalculator.getDueAmounts(model, loanRepaymentScheduleInstallment.getDueDate(),
-                        businessDate);
-                if (dueAmounts != null) {
-                    BigDecimal interestPaid = loanRepaymentScheduleInstallment.getInterestPaid();
-                    BigDecimal dueInterest = dueAmounts.getDueInterest().getAmount();
-                    if (interestPaid == null) {
-                        return dueInterest;
+            if (loan.isChargedOff()) {
+                return loanRepaymentScheduleInstallment.getInterestOutstanding(loan.getCurrency()).getAmount();
+            } else {
+                List<LoanTransaction> transactionsToReprocess = loan.retrieveListOfTransactionsForReprocessing().stream()
+                        .filter(t -> !t.isAccrualActivity()).toList();
+                Pair<ChangedTransactionDetail, ProgressiveLoanInterestScheduleModel> changedTransactionDetailProgressiveLoanInterestScheduleModelPair = advancedPaymentScheduleTransactionProcessor
+                        .reprocessProgressiveLoanTransactions(loan.getDisbursementDate(), businessDate, transactionsToReprocess,
+                                loan.getCurrency(), loan.getRepaymentScheduleInstallments(), loan.getActiveCharges());
+                ProgressiveLoanInterestScheduleModel model = changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getRight();
+                if (!changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getLeft().getCurrentTransactionToOldId().isEmpty()
+                        || !changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getLeft().getNewTransactionMappings()
+                                .isEmpty()) {
+                    List<Long> replayedTransactions = changedTransactionDetailProgressiveLoanInterestScheduleModelPair.getLeft()
+                            .getNewTransactionMappings().keySet().stream().toList();
+                    log.warn("Reprocessed transactions show differences: There are unsaved changes of the following transactions: {}",
+                            replayedTransactions);
+                }
+                if (model != null) {
+                    PeriodDueDetails dueAmounts = emiCalculator.getDueAmounts(model, loanRepaymentScheduleInstallment.getDueDate(),
+                            businessDate);
+                    if (dueAmounts != null) {
+                        BigDecimal interestPaid = loanRepaymentScheduleInstallment.getInterestPaid();
+                        BigDecimal dueInterest = dueAmounts.getDueInterest().getAmount();
+                        if (interestPaid == null) {
+                            return dueInterest;
+                        }
+                        return dueInterest.subtract(interestPaid);
                     }
-                    return dueInterest.subtract(interestPaid);
                 }
             }
         }

@@ -3644,6 +3644,23 @@ public class CommandWrapperBuilder {
         return this;
     }
 
+    public CommandWrapperBuilder createExternalAssetOwnerLoanProductAttribute(final Long loanProductId) {
+        this.actionName = "CREATE";
+        this.entityName = "EXTERNAL_ASSET_OWNER_LOAN_PRODUCT_ATTRIBUTE";
+        this.productId = loanProductId;
+        this.href = "/external-asset-owners/loan-product/" + loanProductId + "/attributes";
+        return this;
+    }
+
+    public CommandWrapperBuilder updateExternalAssetOwnerLoanProductAttribute(final Long loanProductId, final Long attributeId) {
+        this.actionName = "UPDATE";
+        this.entityName = "EXTERNAL_ASSET_OWNER_LOAN_PRODUCT_ATTRIBUTE";
+        this.productId = loanProductId;
+        this.entityId = attributeId;
+        this.href = "/external-asset-owners/loan-product/" + loanProductId + "/attributes/" + attributeId;
+        return this;
+    }
+
     public CommandWrapperBuilder saleLoanToExternalAssetOwner(final Long loanId) {
         this.actionName = "SALE";
         this.entityName = "LOAN";
@@ -3730,6 +3747,42 @@ public class CommandWrapperBuilder {
         this.entityName = "INTEREST_PAUSE";
         this.loanExternalId = new ExternalId(loanExternalId);
         this.href = "/v1/loans/external-id/" + loanExternalId + "/interest-pauses";
+        return this;
+    }
+
+    public CommandWrapperBuilder deleteInterestPause(final long loanId, final long variationId) {
+        this.actionName = "DELETE";
+        this.entityName = "INTEREST_PAUSE";
+        this.loanId = loanId;
+        this.entityId = variationId;
+        this.href = "/v1/loans/" + loanId + "/interest-pauses/" + variationId;
+        return this;
+    }
+
+    public CommandWrapperBuilder deleteInterestPause(final String loanExternalId, final long variationId) {
+        this.actionName = "DELETE";
+        this.entityName = "INTEREST_PAUSE";
+        this.loanExternalId = new ExternalId(loanExternalId);
+        this.entityId = variationId;
+        this.href = "/v1/loans/external-id/" + loanExternalId + "/interest-pauses/" + variationId;
+        return this;
+    }
+
+    public CommandWrapperBuilder updateInterestPause(final long loanId, final long variationId) {
+        this.actionName = "UPDATE";
+        this.entityName = "INTEREST_PAUSE";
+        this.loanId = loanId;
+        this.entityId = variationId;
+        this.href = "/v1/loans/" + loanId + "/interest-pauses/" + variationId;
+        return this;
+    }
+
+    public CommandWrapperBuilder updateInterestPause(final String loanExternalId, final long variationId) {
+        this.actionName = "UPDATE";
+        this.entityName = "INTEREST_PAUSE";
+        this.loanExternalId = new ExternalId(loanExternalId);
+        this.entityId = variationId;
+        this.href = "/v1/loans/external-id/" + loanExternalId + "/interest-pauses/" + variationId;
         return this;
     }
 }
